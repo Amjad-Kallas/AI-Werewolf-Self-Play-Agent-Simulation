@@ -1,7 +1,8 @@
 import random
 from typing import Callable
 
-from ai_werewolf.engine.roles import Team
+from ai_werewolf.engine.models import GameState
+from ai_werewolf.engine.roles import Role, Team
 from ai_werewolf.engine.voting import tally_votes, tally_votes_with_tiebreak
 from ai_werewolf.engine.win_conditions import check_win_condition
 from ai_werewolf.llm.agent import LLMAgent
@@ -14,14 +15,27 @@ def make_night_node(agent: LLMAgent, rng: random.Random) -> Callable[[GraphState
         game = state["game"]
         game.round += 1
 
+        doctor = next((p for p in game.alive_players() if p.role == Role.DOCTOR), None)
+        protected_id = agent.choose_doctor_protect(game, doctor).target_id if doctor else None
+
+        for seer in (p for p in game.alive_players() if p.role == Role.SEER):
+            target = game.get(agent.choose_seer_target(game, seer).target_id)
+            verdict = "ARE" if target.role == Role.WEREWOLF else "are NOT"
+            seer.private_log.append(
+                f"Round {game.round}: you investigated {target.name} (id {target.id}) - they {verdict} a Werewolf."
+            )
+
         wolves = game.alive_by_team(Team.WEREWOLVES)
         votes = {wolf.id: agent.choose_night_target(game, wolf).target_id for wolf in wolves}
         target_id = tally_votes_with_tiebreak(votes, rng)
 
-        victim = game.eliminate(target_id)
-        game.log.append(f"Round {game.round}: {victim.name} was killed during the night.")
-        game.winner = check_win_condition(game)
+        if target_id == protected_id:
+            game.log.append(f"Round {game.round}: the werewolves attacked, but no one died.")
+        else:
+            victim = game.eliminate(target_id)
+            game.log.append(f"Round {game.round}: {victim.name} was killed during the night.")
 
+        game.winner = check_win_condition(game)
         return {"game": game, "discussion": []}
 
     return night_node
@@ -62,9 +76,14 @@ def make_vote_node(agent: LLMAgent) -> Callable[[GraphState], GraphState]:
     return vote_node
 
 
-def resolution_node(state: GraphState) -> GraphState:
-    """Round bookkeeping between a completed vote and the next night."""
-    return {"game": state["game"], "discussion": []}
+def make_resolution_node(summarize: Callable[[GameState], str]) -> Callable[[GraphState], GraphState]:
+    def resolution_node(state: GraphState) -> GraphState:
+        game = state["game"]
+        game.summary = summarize(game)
+        game.summarized_through = len(game.log)
+        return {"game": game, "discussion": []}
+
+    return resolution_node
 
 
 def route_after_night(state: GraphState) -> str:

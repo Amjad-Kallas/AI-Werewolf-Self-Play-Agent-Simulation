@@ -4,8 +4,8 @@ from ai_werewolf.engine.models import GameState, Player
 from ai_werewolf.engine.roles import Role
 
 from .client import invoke_structured
-from .prompts import discussion_prompt, night_prompt, vote_prompt
-from .schemas import NightAction, Statement, VoteAction
+from .prompts import discussion_prompt, doctor_prompt, night_prompt, seer_prompt, vote_prompt
+from .schemas import DoctorAction, NightAction, SeerAction, Statement, VoteAction
 
 
 class LLMAgent:
@@ -24,6 +24,28 @@ class LLMAgent:
             return None
 
         return invoke_structured(self.llm, NightAction, system, human, validate=validate)
+
+    def choose_seer_target(self, state: GameState, seer: Player) -> SeerAction:
+        valid_ids = {p.id for p in state.alive_players() if p.id != seer.id}
+        system, human = seer_prompt(state, seer)
+
+        def validate(action: SeerAction) -> str | None:
+            if action.target_id not in valid_ids:
+                return f"target_id {action.target_id} is not a valid living player other than yourself."
+            return None
+
+        return invoke_structured(self.llm, SeerAction, system, human, validate=validate)
+
+    def choose_doctor_protect(self, state: GameState, doctor: Player) -> DoctorAction:
+        valid_ids = {p.id for p in state.alive_players()}
+        system, human = doctor_prompt(state, doctor)
+
+        def validate(action: DoctorAction) -> str | None:
+            if action.target_id not in valid_ids:
+                return f"target_id {action.target_id} is not a valid living player."
+            return None
+
+        return invoke_structured(self.llm, DoctorAction, system, human, validate=validate)
 
     def make_statement(self, state: GameState, player: Player, discussion: list[dict]) -> Statement:
         system, human = discussion_prompt(state, player, discussion)
