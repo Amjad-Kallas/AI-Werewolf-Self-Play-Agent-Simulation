@@ -1,0 +1,24 @@
+[project]
+name = "ai-werewolf"
+version = "0.1.0"
+description = "Multi-agent LLM self-play simulation of the Werewolf social deduction game"
+readme = "README.md"
+authors = [
+    { name = "Amjad", email = "amjadkallas121@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2.13.5",
+]
+
+[project.scripts]
+ai-werewolf = "ai_werewolf:main"
+
+[build-system]
+requires = ["uv_build>=0.12.7,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
