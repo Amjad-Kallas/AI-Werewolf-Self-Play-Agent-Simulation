@@ -9,6 +9,9 @@ class Player:
     name: str
     role: Role
     alive: bool = True
+    # Facts only this player's own prompts may ever see (e.g. a Seer's past
+    # investigation results). Never read when building another player's prompt.
+    private_log: list[str] = field(default_factory=list)
 
     @property
     def team(self) -> Team:
@@ -21,6 +24,10 @@ class GameState:
     round: int = 0
     log: list[str] = field(default_factory=list)
     winner: Team | None = None
+    # Rolling narrative of everything before `summarized_through`, so prompts
+    # can stay bounded in size instead of replaying the full transcript.
+    summary: str = ""
+    summarized_through: int = 0
 
     def alive_players(self) -> list[Player]:
         return [p for p in self.players if p.alive]
