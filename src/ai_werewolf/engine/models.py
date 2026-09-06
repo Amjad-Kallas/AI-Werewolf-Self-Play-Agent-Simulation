@@ -19,6 +19,16 @@ class Player:
 
 
 @dataclass
+class RoundRecord:
+    """Structured per-round events, kept alongside `GameState.log` for replay purposes."""
+
+    round: int
+    night_result: str
+    discussion: list[dict] = field(default_factory=list)
+    vote_result: str | None = None
+
+
+@dataclass
 class GameState:
     players: list[Player]
     round: int = 0
@@ -28,6 +38,7 @@ class GameState:
     # can stay bounded in size instead of replaying the full transcript.
     summary: str = ""
     summarized_through: int = 0
+    rounds: list[RoundRecord] = field(default_factory=list)
 
     def alive_players(self) -> list[Player]:
         return [p for p in self.players if p.alive]

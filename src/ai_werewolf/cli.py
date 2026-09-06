@@ -1,4 +1,6 @@
 import random
+from datetime import datetime, timezone
+from pathlib import Path
 
 from dotenv import load_dotenv
 from langchain_ollama import ChatOllama
@@ -6,8 +8,10 @@ from langchain_ollama import ChatOllama
 from ai_werewolf.engine.setup import new_game
 from ai_werewolf.graph.build import build_graph
 from ai_werewolf.llm.agent import LLMAgent
+from ai_werewolf.persistence import save_transcript
 
 DEFAULT_NAMES = ["Alice", "Bob", "Carol", "Dave", "Eve", "Frank"]
+TRANSCRIPTS_DIR = Path("transcripts")
 
 
 def main() -> None:
@@ -38,6 +42,11 @@ def main() -> None:
         if player.private_log:
             print(f"\n{player.name}'s private knowledge:")
             print("\n".join(player.private_log))
+
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    out_path = TRANSCRIPTS_DIR / f"game-{timestamp}.json"
+    save_transcript(final_game, out_path)
+    print(f"\nSaved transcript to {out_path}")
 
 
 if __name__ == "__main__":
