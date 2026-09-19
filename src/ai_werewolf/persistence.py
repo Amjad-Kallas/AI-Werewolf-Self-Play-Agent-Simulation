@@ -4,10 +4,12 @@ from pathlib import Path
 
 from ai_werewolf.engine.models import GameState
 
+TRANSCRIPTS_DIR = Path("transcripts")
 
-def save_transcript(game: GameState, path: str | Path) -> None:
-    """Dump a finished (or in-progress) game to JSON for the Streamlit replay viewer."""
-    data = {
+
+def game_to_dict(game: GameState) -> dict:
+    """Plain-dict snapshot of a game, for both saving to disk and live rendering."""
+    return {
         "players": [
             {
                 "id": p.id,
@@ -22,9 +24,13 @@ def save_transcript(game: GameState, path: str | Path) -> None:
         "rounds": [asdict(record) for record in game.rounds],
         "summary": game.summary,
     }
+
+
+def save_transcript(game: GameState, path: str | Path) -> None:
+    """Dump a finished (or in-progress) game to JSON for the Streamlit app."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    path.write_text(json.dumps(game_to_dict(game), indent=2), encoding="utf-8")
 
 
 def load_transcript(path: str | Path) -> dict:

@@ -1,6 +1,5 @@
 import random
 from datetime import datetime, timezone
-from pathlib import Path
 
 from dotenv import load_dotenv
 from langchain_ollama import ChatOllama
@@ -8,10 +7,9 @@ from langchain_ollama import ChatOllama
 from ai_werewolf.engine.setup import new_game
 from ai_werewolf.graph.build import build_graph
 from ai_werewolf.llm.agent import LLMAgent
-from ai_werewolf.persistence import save_transcript
+from ai_werewolf.persistence import TRANSCRIPTS_DIR, save_transcript
 
 DEFAULT_NAMES = ["Alice", "Bob", "Carol", "Dave", "Eve", "Frank"]
-TRANSCRIPTS_DIR = Path("transcripts")
 
 
 def main() -> None:

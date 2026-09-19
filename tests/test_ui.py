@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 from streamlit.testing.v1 import AppTest
 
-APP_PATH = str(Path(__file__).resolve().parent.parent / "src" / "ai_werewolf" / "viewer" / "app.py")
+APP_PATH = str(Path(__file__).resolve().parent.parent / "src" / "ai_werewolf" / "ui" / "app.py")
 
 SAMPLE_TRANSCRIPT = {
     "players": [
@@ -57,7 +57,8 @@ def test_reveal_checkbox_shows_roles_and_hidden_investigation(transcripts_cwd):
     assert not any("Werewolf" in md.value for md in at.markdown)
     assert not any("investigated Bob" in md.value for md in at.markdown)
 
-    at.checkbox[0].set_value(True).run()
+    replay_reveal = next(cb for cb in at.checkbox if cb.label == "Reveal hidden roles")
+    replay_reveal.set_value(True).run()
 
     assert not at.exception
     assert any("Werewolf" in md.value for md in at.markdown)
@@ -80,3 +81,28 @@ def test_no_transcript_available_shows_info_message(tmp_path, monkeypatch):
 
     assert not at.exception
     assert any("No transcript selected" in i.value for i in at.info)
+
+
+def test_play_tab_renders_form_without_starting_a_game(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    at = AppTest.from_file(APP_PATH)
+    at.run()
+
+    assert not at.exception
+    assert any("Configure a new game" in sh.value for sh in at.subheader)
+
+
+def test_play_tab_rejects_invalid_role_counts_without_touching_the_model(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    at = AppTest.from_file(APP_PATH)
+    at.run()
+
+    werewolves_input = next(ni for ni in at.number_input if ni.label == "Werewolves")
+    werewolves_input.set_value(5)  # 6 players, 5*2 >= 6 -> new_game() should reject this
+    at.button[0].click().run()
+
+    assert not at.exception
+    assert any("Can't start that game" in e.value for e in at.error)
+    assert not (tmp_path / "transcripts").exists()
