@@ -2,20 +2,30 @@ import random
 from datetime import datetime, timezone
 
 import streamlit as st
-from langchain_ollama import ChatOllama
 
 from ai_werewolf.engine.setup import new_game
 from ai_werewolf.graph.build import build_graph
 from ai_werewolf.llm.agent import LLMAgent
+from ai_werewolf.llm.providers import DEFAULT_MODELS, make_llm
 from ai_werewolf.persistence import TRANSCRIPTS_DIR, game_to_dict, save_transcript
 
 from .rendering import render_game_feed
 
 DEFAULT_NAMES = ["Alice", "Bob", "Carol", "Dave", "Eve", "Frank", "Grace", "Heidi", "Ivan", "Judy", "Karl", "Liam"]
 
+PROVIDER_LABELS = {"ollama": "Ollama (local)", "mistral": "Mistral (API)"}
+
 
 def render_play_tab() -> None:
     st.subheader("Configure a new game")
+
+    # Outside the form so switching providers immediately updates the default model below.
+    provider = st.radio(
+        "Model provider",
+        options=list(PROVIDER_LABELS),
+        format_func=lambda p: PROVIDER_LABELS[p],
+        horizontal=True,
+    )
 
     with st.form("new_game_form"):
         names_text = st.text_area(
@@ -28,7 +38,7 @@ def render_play_tab() -> None:
         num_seers = col2.number_input("Seers", min_value=0, max_value=1, value=1)
         num_doctors = col3.number_input("Doctors", min_value=0, max_value=1, value=1)
 
-        model_name = st.text_input("Ollama model", value="qwen2.5:3b")
+        model_name = st.text_input("Model", value=DEFAULT_MODELS[provider])
         temperature = st.slider("Model temperature", 0.0, 1.5, 0.7, 0.1)
         reveal_live = st.checkbox("Reveal hidden roles while playing", value=False)
 
@@ -40,6 +50,7 @@ def render_play_tab() -> None:
             num_werewolves=num_werewolves,
             num_seers=num_seers,
             num_doctors=num_doctors,
+            provider=provider,
             model_name=model_name,
             temperature=temperature,
             reveal_live=reveal_live,
@@ -58,6 +69,7 @@ def _run_new_game(
     num_werewolves: int,
     num_seers: int,
     num_doctors: int,
+    provider: str,
     model_name: str,
     temperature: float,
     reveal_live: bool,
@@ -72,16 +84,16 @@ def _run_new_game(
         return
 
     try:
-        llm = ChatOllama(model=model_name, temperature=temperature)
+        llm = make_llm(provider, model_name, temperature)
         agent = LLMAgent(llm)
         graph = build_graph(agent, rng)
     except Exception as exc:
-        st.error(f"Couldn't set up the model '{model_name}': {exc}")
+        st.error(f"Couldn't set up {PROVIDER_LABELS[provider]} model '{model_name}': {exc}")
         return
 
     game_area = st.empty()
     final_game = None
-    config = {"recursion_limit": 300, "run_name": "werewolf-self-play", "metadata": {"model": model_name}}
+    config = {"recursion_limit": 300, "run_name": "werewolf-self-play", "metadata": {"provider": provider, "model": model_name}}
 
     try:
         with st.spinner("Playing..."):
