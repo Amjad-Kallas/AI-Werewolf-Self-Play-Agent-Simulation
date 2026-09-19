@@ -1,8 +1,10 @@
 import streamlit as st
+from dotenv import load_dotenv
 
 from ai_werewolf.ui.play import render_play_tab
 from ai_werewolf.ui.replay import render_replay_tab
 
+load_dotenv()
 st.set_page_config(page_title="Werewolf", layout="wide")
 
 

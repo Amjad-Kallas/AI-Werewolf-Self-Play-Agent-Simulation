@@ -93,6 +93,22 @@ def test_play_tab_renders_form_without_starting_a_game(tmp_path, monkeypatch):
     assert any("Configure a new game" in sh.value for sh in at.subheader)
 
 
+def test_play_tab_switching_provider_updates_default_model(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    at = AppTest.from_file(APP_PATH)
+    at.run()
+
+    model_input = next(ti for ti in at.text_input if ti.label == "Model")
+    assert model_input.value == "qwen2.5:3b"
+
+    at.radio[0].set_value("mistral").run()
+
+    assert not at.exception
+    model_input = next(ti for ti in at.text_input if ti.label == "Model")
+    assert model_input.value == "mistral-small-latest"
+
+
 def test_play_tab_rejects_invalid_role_counts_without_touching_the_model(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
 
