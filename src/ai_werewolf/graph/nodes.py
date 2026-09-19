@@ -1,7 +1,7 @@
 import random
 from typing import Callable
 
-from ai_werewolf.engine.models import GameState
+from ai_werewolf.engine.models import GameState, RoundRecord
 from ai_werewolf.engine.roles import Role, Team
 from ai_werewolf.engine.voting import tally_votes, tally_votes_with_tiebreak
 from ai_werewolf.engine.win_conditions import check_win_condition
@@ -30,10 +30,12 @@ def make_night_node(agent: LLMAgent, rng: random.Random) -> Callable[[GraphState
         target_id = tally_votes_with_tiebreak(votes, rng)
 
         if target_id == protected_id:
-            game.log.append(f"Round {game.round}: the werewolves attacked, but no one died.")
+            night_result = "the werewolves attacked, but no one died."
         else:
             victim = game.eliminate(target_id)
-            game.log.append(f"Round {game.round}: {victim.name} was killed during the night.")
+            night_result = f"{victim.name} was killed during the night."
+        game.log.append(f"Round {game.round}: {night_result}")
+        game.rounds.append(RoundRecord(round=game.round, night_result=night_result))
 
         game.winner = check_win_condition(game)
         return {"game": game, "discussion": []}
@@ -51,6 +53,7 @@ def make_discussion_node(agent: LLMAgent) -> Callable[[GraphState], GraphState]:
             discussion.append({"player_id": player.id, "name": player.name, "speech": statement.speech})
             game.log.append(f"{player.name}: {statement.speech}")
 
+        game.rounds[-1].discussion = discussion
         return {"game": game, "discussion": discussion}
 
     return discussion_node
@@ -65,10 +68,12 @@ def make_vote_node(agent: LLMAgent) -> Callable[[GraphState], GraphState]:
         eliminated_id = tally_votes(votes)
 
         if eliminated_id is None:
-            game.log.append(f"Round {game.round}: the vote was tied, no one was eliminated.")
+            vote_result = "the vote was tied, no one was eliminated."
         else:
             eliminated = game.eliminate(eliminated_id)
-            game.log.append(f"Round {game.round}: {eliminated.name} was voted out.")
+            vote_result = f"{eliminated.name} was voted out."
+        game.log.append(f"Round {game.round}: {vote_result}")
+        game.rounds[-1].vote_result = vote_result
 
         game.winner = check_win_condition(game)
         return {"game": game, "discussion": discussion}

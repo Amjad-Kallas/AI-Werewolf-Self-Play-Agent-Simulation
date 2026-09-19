@@ -127,6 +127,37 @@ def test_seer_investigation_is_recorded_privately_and_never_leaks_publicly():
             assert not other.private_log
 
 
+def test_round_records_capture_night_discussion_and_vote():
+    game = new_game(["a", "b", "c", "d", "e"], num_werewolves=1, rng=random.Random(1))
+    werewolf_id = next(p.id for p in game.players if p.role.value == "werewolf")
+
+    agent = FakeAgent(night_target_fn=first_villager_id, vote_fn=vote_out_the_werewolf(werewolf_id))
+    app = build_graph(agent, rng=random.Random(0), summarize=fake_summarize)
+
+    result = app.invoke({"game": game, "discussion": []}, config={"recursion_limit": 50})
+    final = result["game"]
+
+    assert len(final.rounds) == 1
+    record = final.rounds[0]
+    assert record.round == 1
+    assert "killed during the night" in record.night_result
+    assert len(record.discussion) == 4  # all 4 survivors spoke before the vote
+    assert "voted out" in record.vote_result
+
+
+def test_round_record_partial_when_game_ends_at_night():
+    game = new_game(["a", "b", "c"], num_werewolves=1, rng=random.Random(0))
+    agent = FakeAgent(night_target_fn=first_villager_id, vote_fn=lambda *_: 0)
+    app = build_graph(agent, rng=random.Random(0), summarize=fake_summarize)
+
+    result = app.invoke({"game": game, "discussion": []})
+    final = result["game"]
+
+    assert len(final.rounds) == 1
+    assert final.rounds[0].discussion == []
+    assert final.rounds[0].vote_result is None
+
+
 def test_route_after_night_ends_when_winner_set():
     game = new_game(["a", "b", "c"], num_werewolves=1, rng=random.Random(0))
     game.winner = Team.WEREWOLVES
